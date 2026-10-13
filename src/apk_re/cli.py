@@ -63,10 +63,8 @@ def analyze(apk: str, report: str, output: str | None, decompile: bool, output_d
         console.print(f"[bold red]Analysis failed:[/] {e}")
         sys.exit(1)
 
-    # Pretty console summary
     _print_summary(result)
 
-    # Reports
     if report in ("json", "both"):
         out = output or f"{Path(apk).stem}_report.json"
         if report == "both" and output:
@@ -81,7 +79,6 @@ def analyze(apk: str, report: str, output: str | None, decompile: bool, output_d
         path = generate_html(result, out)
         console.print(f"[green]✓[/] HTML report → [bold]{path}[/]")
 
-    # Optional decompilation
     if decompile:
         console.print("\n[bold]Decompilation[/]")
         dec = Decompiler(apk, output_dir)
@@ -150,6 +147,15 @@ def _print_summary(result):
         "Potential Secrets",
         f"[red]{len(result.secrets)}[/]" if result.secrets else "0",
     )
+    table.add_row(
+        "Risk Score",
+        f"[bold]{result.risk_level}[/] ({result.risk_score}/100)",
+    )
+    table.add_row("Allow Backup", "[yellow]YES[/]" if result.allow_backup else "[green]NO[/]")
+    table.add_row("Cleartext Traffic",
+        "[red]ALLOWED[/]" if result.uses_cleartext_traffic is True else
+        ("[green]BLOCKED[/]" if result.uses_cleartext_traffic is False else "UNKNOWN"))
+    table.add_row("Detected SDKs", ", ".join(result.detected_sdks[:5]) or "—")
 
     console.print(table)
 
@@ -162,6 +168,12 @@ def _print_summary(result):
         console.print("\n[bold yellow]Potential Secrets (sample):[/]")
         for s in result.secrets[:8]:
             console.print(f"  • [{s['type']}] {s['value'][:80]}")
+
+    if result.findings:
+        console.print("\n[bold cyan]Security Findings:[/]")
+        for f in result.findings:
+            color = {"High": "red", "Medium": "yellow", "Low": "blue"}.get(f["severity"], "white")
+            console.print(f"  [{color}]● {f['title']}[/] ({f['severity']})")
 
 
 if __name__ == "__main__":
